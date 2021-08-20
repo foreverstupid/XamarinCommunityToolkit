@@ -92,6 +92,21 @@ namespace Xamarin.CommunityToolkit.UI.Views
 		public static BindableProperty TrackHighlightBorderColorProperty
 			= BindableProperty.Create(nameof(TrackHighlightBorderColor), typeof(Color), typeof(RangeSlider), Color.Default, propertyChanged: OnLayoutPropertyChanged);
 
+		public static BindableProperty ThumbBrushProperty
+			= BindableProperty.Create(nameof(ThumbBrush), typeof(Brush), typeof(RangeSlider), Brush.Default, propertyChanged: OnLayoutPropertyChanged);
+
+		public static BindableProperty LowerThumbBrushProperty
+			= BindableProperty.Create(nameof(LowerThumbBrush), typeof(Brush), typeof(RangeSlider), Brush.Default, propertyChanged: OnLayoutPropertyChanged);
+
+		public static BindableProperty UpperThumbBrushProperty
+			= BindableProperty.Create(nameof(UpperThumbBrush), typeof(Brush), typeof(RangeSlider), Brush.Default, propertyChanged: OnLayoutPropertyChanged);
+
+		public static BindableProperty TrackBrushProperty
+			= BindableProperty.Create(nameof(TrackBrush), typeof(Brush), typeof(RangeSlider), Brush.Default, propertyChanged: OnLayoutPropertyChanged);
+
+		public static BindableProperty TrackHighlightBrushProperty
+			= BindableProperty.Create(nameof(TrackHighlightBrush), typeof(Brush), typeof(RangeSlider), Brush.Default, propertyChanged: OnLayoutPropertyChanged);
+
 		public static BindableProperty ValueLabelStyleProperty
 			= BindableProperty.Create(nameof(ValueLabelStyle), typeof(Style), typeof(RangeSlider), propertyChanged: OnLayoutPropertyChanged);
 
@@ -124,6 +139,12 @@ namespace Xamarin.CommunityToolkit.UI.Views
 
 		public static BindableProperty TrackRadiusProperty
 			= BindableProperty.Create(nameof(TrackRadius), typeof(double), typeof(RangeSlider), -1.0, propertyChanged: OnLayoutPropertyChanged);
+
+		public static BindableProperty IsLowerThumbEnabledProperty
+			= BindableProperty.Create(nameof(IsLowerThumbEnabled), typeof(bool), typeof(RangeSlider), true, propertyChanged: OnThumbVisibleChanged);
+
+		public static BindableProperty IsUpperThumbEnabledProperty
+			= BindableProperty.Create(nameof(IsUpperThumbEnabled), typeof(bool), typeof(RangeSlider), true, propertyChanged: OnThumbVisibleChanged);
 
 		readonly Dictionary<View, double> thumbPositionMap = new Dictionary<View, double>();
 
@@ -255,6 +276,36 @@ namespace Xamarin.CommunityToolkit.UI.Views
 			set => SetValue(TrackHighlightBorderColorProperty, value);
 		}
 
+		public Brush ThumbBrush
+		{
+			get => (Brush)GetValue(ThumbBrushProperty);
+			set => SetValue(ThumbBrushProperty, value);
+		}
+
+		public Brush LowerThumbBrush
+		{
+			get => (Brush)GetValue(LowerThumbBrushProperty);
+			set => SetValue(LowerThumbBrushProperty, value);
+		}
+
+		public Brush UpperThumbBrush
+		{
+			get => (Brush)GetValue(UpperThumbBrushProperty);
+			set => SetValue(UpperThumbBrushProperty, value);
+		}
+
+		public Brush TrackBrush
+		{
+			get => (Brush)GetValue(TrackBrushProperty);
+			set => SetValue(TrackBrushProperty, value);
+		}
+
+		public Brush TrackHighlightBrush
+		{
+			get => (Brush)GetValue(TrackHighlightBrushProperty);
+			set => SetValue(TrackHighlightBrushProperty, value);
+		}
+
 		public Style ValueLabelStyle
 		{
 			get => (Style)GetValue(ValueLabelStyleProperty);
@@ -321,6 +372,22 @@ namespace Xamarin.CommunityToolkit.UI.Views
 			set => SetValue(TrackRadiusProperty, value);
 		}
 
+		public bool IsLowerThumbEnabled
+		{
+			get => (bool)GetValue(IsLowerThumbEnabledProperty);
+			set => SetValue(IsLowerThumbEnabledProperty, value);
+		}
+
+		public bool IsUpperThumbEnabled
+		{
+			get => (bool)GetValue(IsUpperThumbEnabledProperty);
+			set => SetValue(IsUpperThumbEnabledProperty, value);
+		}
+
+		private double UpperThumbWidth => IsUpperThumbEnabled ? UpperThumb.Width : 0;
+
+		private double LowerThumbWidth => IsLowerThumbEnabled ? LowerThumb.Width : 0;
+
 		static bool IsThumbShadowSupported
 			=> Device.RuntimePlatform == Device.iOS
 			|| Device.RuntimePlatform == Device.macOS;
@@ -337,7 +404,7 @@ namespace Xamarin.CommunityToolkit.UI.Views
 
 		Label UpperValueLabel { get; } = CreateLabelElement();
 
-		double TrackWidth => Width - LowerThumb.Width - UpperThumb.Width;
+		double TrackWidth => Width - LowerThumbWidth - UpperThumbWidth;
 
 		protected override void OnPropertyChanged([CallerMemberName] string propertyName = "")
 		{
@@ -389,6 +456,13 @@ namespace Xamarin.CommunityToolkit.UI.Views
 			OnLayoutPropertyChanged();
 		}
 
+		private void OnThumbVisibleChanged()
+		{
+			UpperThumb.IsVisible = IsUpperThumbEnabled;
+			LowerThumb.IsVisible = IsLowerThumbEnabled;
+			OnLayoutPropertyChanged();
+		}
+
 		static Frame CreateFrameElement<TFrame>(bool hasShadow = false) where TFrame : Frame, new()
 		{
 			var frame = new TFrame
@@ -433,6 +507,9 @@ namespace Xamarin.CommunityToolkit.UI.Views
 		static void OnLayoutPropertyChanged(BindableObject bindable, object oldValue, object newValue)
 			=> ((RangeSlider)bindable).OnLayoutPropertyChanged();
 
+		static void OnThumbVisibleChanged(BindableObject bindable, object oldValue, object newValue)
+			=> ((RangeSlider)bindable).OnThumbVisibleChanged();
+
 		void OnIsEnabledChanged()
 		{
 			if (Control == null)
@@ -465,21 +542,21 @@ namespace Xamarin.CommunityToolkit.UI.Views
 			var trackWidth = TrackWidth;
 
 			lowerTranslation = (LowerValue - MinimumValue) / rangeValue * trackWidth;
-			upperTranslation = ((UpperValue - MinimumValue) / rangeValue * trackWidth) + LowerThumb.Width;
+			upperTranslation = ((UpperValue - MinimumValue) / rangeValue * trackWidth) + LowerThumbWidth;
 
 			LowerThumb.TranslationX = lowerTranslation;
 			UpperThumb.TranslationX = upperTranslation;
 			OnValueLabelTranslationChanged();
 
 			var bounds = GetLayoutBounds(TrackHighlight);
-			SetLayoutBounds(TrackHighlight, new Rectangle(lowerTranslation, bounds.Y, upperTranslation - lowerTranslation + UpperThumb.Width, bounds.Height));
+			SetLayoutBounds(TrackHighlight, new Rectangle(lowerTranslation, bounds.Y, upperTranslation - lowerTranslation + UpperThumbWidth, bounds.Height));
 		}
 
 		void OnValueLabelTranslationChanged()
 		{
 			var labelSpacing = 5;
-			var lowerLabelTranslation = lowerTranslation + ((LowerThumb.Width - LowerValueLabel.Width) / 2);
-			var upperLabelTranslation = upperTranslation + ((UpperThumb.Width - UpperValueLabel.Width) / 2);
+			var lowerLabelTranslation = lowerTranslation + ((LowerThumbWidth - LowerValueLabel.Width) / 2);
+			var upperLabelTranslation = upperTranslation + ((UpperThumbWidth - UpperValueLabel.Width) / 2);
 			LowerValueLabel.TranslationX = Min(Max(lowerLabelTranslation, 0), Width - LowerValueLabel.Width - UpperValueLabel.Width - labelSpacing);
 			UpperValueLabel.TranslationX = Min(Max(upperLabelTranslation, LowerValueLabel.TranslationX + LowerValueLabel.Width + labelSpacing), Width - UpperValueLabel.Width);
 		}
@@ -507,10 +584,12 @@ namespace Xamarin.CommunityToolkit.UI.Views
 
 			LowerThumb.BorderColor = lowerThumbBorderColor;
 			UpperThumb.BorderColor = upperThumbBorderColor;
-			LowerThumb.BackgroundColor = GetColorOrDefault(lowerThumbColor, Color.White);
-			UpperThumb.BackgroundColor = GetColorOrDefault(upperThumbColor, Color.White);
-			Track.BackgroundColor = GetColorOrDefault(TrackColor, Color.FromRgb(182, 182, 182));
-			TrackHighlight.BackgroundColor = GetColorOrDefault(TrackHighlightColor, Color.FromRgb(46, 124, 246));
+
+			SetBackground(LowerThumb, lowerThumbColor, LowerThumbBrush, ThumbBrush, Color.White);
+			SetBackground(UpperThumb, upperThumbColor, UpperThumbBrush, ThumbBrush, Color.White);
+			SetBackground(Track, TrackColor, TrackBrush, Brush.Default, Color.FromRgb(182, 182, 182));
+			SetBackground(TrackHighlight, TrackHighlightColor, TrackHighlightBrush, Brush.Default, Color.FromRgb(46, 124, 246));
+
 			Track.BorderColor = GetColorOrDefault(TrackBorderColor, Color.Default);
 			TrackHighlight.BorderColor = GetColorOrDefault(TrackHighlightBorderColor, Color.Default);
 
@@ -559,6 +638,28 @@ namespace Xamarin.CommunityToolkit.UI.Views
 			LowerValueLabel.BatchCommit();
 			UpperValueLabel.BatchCommit();
 			BatchCommit();
+		}
+
+		void SetBackground(Frame frame, Color color, Brush brush, Brush defaultBrush, Color defaultColor)
+		{
+			if (color != Color.Default)
+			{
+				frame.BackgroundColor = color;
+				return;
+			}
+
+			if (brush != Brush.Default)
+			{
+				frame.Background = brush;
+				return;
+			}
+
+			if (defaultBrush != Brush.Default)
+			{
+				frame.Background = defaultBrush;
+			}
+
+			frame.BackgroundColor = defaultColor;
 		}
 
 		void OnViewSizeChanged(object? sender, System.EventArgs e)
@@ -626,7 +727,7 @@ namespace Xamarin.CommunityToolkit.UI.Views
 				LowerValue = Min(Max(MinimumValue, (value / TrackWidth * rangeValue) + MinimumValue), UpperValue);
 				return;
 			}
-			UpperValue = Min(Max(LowerValue, ((value - LowerThumb.Width) / TrackWidth * rangeValue) + MinimumValue), MaximumValue);
+			UpperValue = Min(Max(LowerValue, ((value - LowerThumbWidth) / TrackWidth * rangeValue) + MinimumValue), MaximumValue);
 		}
 
 		double GetPanShiftValue(View view)
